@@ -42,9 +42,19 @@ func (s *Server) handleCreateDeploy(w http.ResponseWriter, r *http.Request) erro
 			CreatedAT: time.Now(),
 			Function:  i,
 		}
+
 		if err := s.store.CreateDeploy(&deploy); err != nil {
 			return writeJSON(w, http.StatusUnprocessableEntity, ErrorResponse(err))
 		}
+
+		// instantiate runtime
+		rt, err := runtime.New(deploy.Blob)
+		if err != nil {
+			return writeJSON(w, http.StatusUnprocessableEntity, ErrorResponse(err))
+		}
+
+		deploy.Runtime = rt
+
 		deployments = append(deployments, deploy)
 	}
 
