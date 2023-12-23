@@ -47,9 +47,9 @@ func (s *Server) initRouter() {
 	s.router = chi.NewRouter()
 	s.router.Get("/status", handleStatus)
 	s.router.Post("/app", makeAPIHandler(s.handleCreateApp))
-	s.router.Post("/app/{id}/deploy", makeAPIHandler(s.handleCreateDeploy))
+	s.router.Post("/app/deploy/{id}", makeAPIHandler(s.handleCreateDeploy))
 
-	s.router.Handle("/proxy/{id}", makeAPIHandler(s.handleProxy))
+	s.router.Handle("/call/{id}", makeAPIHandler(s.handleProxy))
 }
 
 func handleStatus(w http.ResponseWriter, r *http.Request) {
