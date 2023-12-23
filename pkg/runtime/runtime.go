@@ -1,71 +1,99 @@
 package runtime
 
 import (
-	"github.com/anthdm/hollywood/actor"
+	"context"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+
+	"github.com/tetratelabs/wazero"
+	wapi "github.com/tetratelabs/wazero/api"
+	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
+type Request struct {
+	Body   []byte
+	Method string
+	URL    string
+}
+
 type Runtime struct {
+	wasmBlob    []byte
+	compiledMod wazero.CompiledModule
+	module      wapi.Module
+	wruntime    wazero.Runtime
 }
 
-func New() actor.Producer {
-	return func() actor.Receiver {
-		return &Runtime{}
+func New(blob []byte) (*Runtime, error) {
+	var (
+		ctx     = context.Background()
+		config  = wazero.NewRuntimeConfig().WithDebugInfoEnabled(true)
+		runtime = wazero.NewRuntimeWithConfig(ctx, config)
+	)
+
+	wasi_snapshot_preview1.MustInstantiate(ctx, runtime)
+
+	compiledMod, err := runtime.CompileModule(ctx, blob)
+	if err != nil {
+		return nil, err
 	}
-}
 
-func (r *Runtime) Receive(c *actor.Context) {
-	switch msg := c.Message().(type) {
-	case actor.Started:
-		// TODO: very poccy, we need to spawn another runner, which we can send messages to
-		// (stop, ...)
-		go r.start()
-	default:
-		_ = msg
+	modConfig := wazero.NewModuleConfig().WithStdout(os.Stdout)
+	mod, err := runtime.InstantiateModule(ctx, compiledMod, modConfig)
+	if err != nil {
+		return nil, err
 	}
+
+	return &Runtime{
+		wasmBlob:    blob,
+		compiledMod: compiledMod,
+		module:      mod,
+		wruntime:    runtime,
+	}, nil
 }
 
-func (r *Runtime) start() {
-	// ctx := context.Background()
-	// runtime := wazero.NewRuntime(ctx)
-	// defer runtime.Close(ctx)
+func (runtime *Runtime) HandleHTTP(w http.ResponseWriter, r *http.Request) error {
+	ctx := context.Background()
+	rbody, err := io.ReadAll(r.Body)
+	if err != nil {
+		return err
+	}
+	req := Request{
+		Method: r.Method,
+		URL:    r.URL.Path,
+		Body:   rbody,
+	}
 
-	// wasmModule, err := runtime.CompileModule(ctx, r.blob.Contents)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// defer wasmModule.Close(ctx)
+	reqb, err := msgpack.Marshal(req)
+	if err != nil {
+		return err
+	}
 
-	// builder := imports.NewBuilder().
-	// 	WithName("foobarbaz").
-	// 	WithSocketsExtension("auto", wasmModule)
-	// 	// WithArgs(args...).
-	// 	// WithEnv(envs...).
-	// 	// WithDirs(dirs...).
-	// 	// WithListens(listens...).
-	// 	// WithDials(dials...).
-	// 	// WithNonBlockingStdio(nonBlockingStdio).
-	// 	// WithTracer(trace, os.Stderr, wasi.WithTracerStringSize(tracerStringSize)).
-	// 	// WithMaxOpenFiles(maxOpenFiles).
-	// 	// WithMaxOpenDirs(maxOpenDirs)
+	fmt.Println(reqb)
 
-	// var system wasi.System
-	// ctx, system, err = builder.Instantiate(ctx, runtime)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// defer system.Close(ctx)
+	alloc := runtime.module.ExportedFunction("alloc")
+	res, err := alloc.Call(ctx, uint64(len(reqb)))
+	if err != nil {
+		return err
+	}
 
-	// // Probably only need to do this when the user give us the "http service" flag
-	// wasi_http.DetectWasiHttp(wasmModule)
+	runtime.module.Memory().Write(uint32(res[0]), reqb)
 
-	// wasiHTTP := wasi_http.MakeWasiHTTP()
-	// if err := wasiHTTP.Instantiate(ctx, runtime); err != nil {
-	// 	log.Fatal(err)
-	// }
+	handleHTTP := runtime.module.ExportedFunction("handle_http_request")
+	res, err = handleHTTP.Call(ctx, res[0], uint64(len(reqb)))
+	if err != nil {
+		return err
+	}
+	n, _ := runtime.module.Memory().ReadUint32Le(uint32(res[0]))
+	resBytes, _ := runtime.module.Memory().Read(uint32(res[0]), n+4)
 
-	// instance, err := runtime.InstantiateModule(ctx, wasmModule, wazero.NewModuleConfig())
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// instance.Close(ctx)
+	fmt.Println(string(resBytes))
+	_, err = w.Write(resBytes[4:])
+	return err
+}
+
+func (runtime *Runtime) Close(ctx context.Context) error {
+	return runtime.wruntime.Close(ctx)
 }

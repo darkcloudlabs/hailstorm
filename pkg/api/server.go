@@ -42,7 +42,9 @@ func (s *Server) start(c *actor.Context) {
 func (s *Server) initRouter() {
 	s.router = chi.NewRouter()
 	s.router.Get("/status", handleStatus)
-	s.router.Get("/deploy", makeAPIHandler(s.handleCreateDeploy))
+	s.router.Get("/deploy/{id}", makeAPIHandler(s.handleCreateDeploy))
+
+	s.router.Handle("/proxy/{id}", makeAPIHandler(s.handleProxy))
 }
 
 func handleStatus(w http.ResponseWriter, r *http.Request) {

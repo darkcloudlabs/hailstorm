@@ -13,7 +13,7 @@ func Handle(h http.HandlerFunc) {
 	handler = h
 }
 
-var buffers = map[uintptr][]byte{}
+var buffers = make(map[uintptr][]byte, 0)
 
 func readBufferFromMemory(bufferPosition *uint32, length uint32) []byte {
 	subjectBuffer := make([]byte, length)

@@ -1,5 +1,5 @@
 wasm:
-	tinygo build -o app.wasm -scheduler=none --no-debug -target wasi testdata/main.go
+	tinygo build -o testdata/app.wasm -scheduler=none --no-debug -target wasi testdata/main.go
 
 build:
 	@go build -o bin/hailstorm cmd/hailstorm/main.go 
