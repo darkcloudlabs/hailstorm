@@ -10,10 +10,15 @@ import (
 	"github.com/darkcloudlabs/hailstorm/pkg/encoder"
 )
 
-var handler http.HandlerFunc
+var handlers = make(map[uint32]http.HandlerFunc, 0)
 
 func Handle(h http.HandlerFunc) {
-	handler = h
+	handlers[functionCount()] = h
+}
+
+//export function_count
+func functionCount() uint32 {
+	return uint32(len(handlers))
 }
 
 var mem = make(map[uint32][]byte, 0)
@@ -34,12 +39,11 @@ func readBufferFromMemory(ptr, size uint32) ([]byte, error) {
 
 //export alloc
 func alloc(size uint32) (loc uint32) {
-	b := make([]byte, size)
-	return makeBuffer(b)
+	return makeBuffer(make([]byte, size))
 }
 
 //export handle_http_request
-func handleHandleHTTPRequest(ptr uint32, size uint32) uint32 {
+func handleHandleHTTPRequest(ptr uint32, size uint32, id uint32) uint32 {
 	buf, err := readBufferFromMemory(ptr, size)
 	if err != nil {
 		fmt.Printf("hs.go: error reading buffer from memory: %s\n", err)
@@ -54,6 +58,7 @@ func handleHandleHTTPRequest(ptr uint32, size uint32) uint32 {
 
 	rw := &ResponseWriter{header: make(http.Header)}
 
+	handler := handlers[id]
 	handler(rw, req)
 
 	bodyBytes := rw.buffer.Bytes()

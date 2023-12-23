@@ -46,7 +46,7 @@ func New(blob []byte) (*Runtime, error) {
 	}, nil
 }
 
-func (runtime *Runtime) HandleHTTP(w http.ResponseWriter, r *http.Request) error {
+func (runtime *Runtime) HandleHTTP(w http.ResponseWriter, r *http.Request, id int) error {
 	ctx := context.Background()
 
 	reqb, err := encoder.EncodeRequest(r)
@@ -64,7 +64,7 @@ func (runtime *Runtime) HandleHTTP(w http.ResponseWriter, r *http.Request) error
 	runtime.module.Memory().Write(ptr, reqb)
 
 	handleHTTP := runtime.module.ExportedFunction("handle_http_request")
-	res, err = handleHTTP.Call(ctx, res[0], uint64(len(reqb)))
+	res, err = handleHTTP.Call(ctx, res[0], uint64(len(reqb)), uint64(id))
 	if err != nil {
 		return err
 	}
@@ -88,4 +88,22 @@ func (runtime *Runtime) HandleHTTP(w http.ResponseWriter, r *http.Request) error
 
 func (runtime *Runtime) Close(ctx context.Context) error {
 	return runtime.wruntime.Close(ctx)
+}
+
+func GetHandlerCount(blob []byte) int {
+	runtime, err := New(blob)
+	if err != nil {
+		return 1
+	}
+	ctx := context.Background()
+
+	defer runtime.Close(ctx)
+
+	functionCount := runtime.module.ExportedFunction("function_count")
+	res, err := functionCount.Call(ctx)
+	if err != nil {
+		return 1
+	}
+
+	return int(res[0])
 }

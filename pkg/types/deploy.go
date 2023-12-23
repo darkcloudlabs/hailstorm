@@ -12,4 +12,5 @@ type Deploy struct {
 	Region    string    `json:"region"`
 	Blob      []byte    `json:"-"`
 	CreatedAT time.Time `json:"createdAt"`
+	Function  int       `json:"function"`
 }

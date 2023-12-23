@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/darkcloudlabs/hailstorm/pkg/runtime"
 	"github.com/darkcloudlabs/hailstorm/pkg/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -29,15 +30,23 @@ func (s *Server) handleCreateDeploy(w http.ResponseWriter, r *http.Request) erro
 		return writeJSON(w, http.StatusNotFound, ErrorResponse(err))
 	}
 
-	deploy := types.Deploy{
-		ID:        uuid.New(),
-		AppID:     app.ID,
-		Blob:      b,
-		CreatedAT: time.Now(),
-	}
-	if err := s.store.CreateDeploy(&deploy); err != nil {
-		return writeJSON(w, http.StatusUnprocessableEntity, ErrorResponse(err))
+	numberOfFunctions := runtime.GetHandlerCount(b)
+
+	deployments := make([]types.Deploy, 0)
+
+	for i := 0; i < numberOfFunctions; i++ {
+		deploy := types.Deploy{
+			ID:        uuid.New(),
+			AppID:     app.ID,
+			Blob:      b,
+			CreatedAT: time.Now(),
+			Function:  i,
+		}
+		if err := s.store.CreateDeploy(&deploy); err != nil {
+			return writeJSON(w, http.StatusUnprocessableEntity, ErrorResponse(err))
+		}
+		deployments = append(deployments, deploy)
 	}
 
-	return writeJSON(w, http.StatusOK, deploy)
+	return writeJSON(w, http.StatusOK, deployments)
 }

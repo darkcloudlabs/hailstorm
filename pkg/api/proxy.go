@@ -25,7 +25,7 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	if err := run.HandleHTTP(w, r); err != nil {
+	if err := run.HandleHTTP(w, r, deploy.Function); err != nil {
 		return err
 	}
 
