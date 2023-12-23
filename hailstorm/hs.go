@@ -2,7 +2,7 @@ package hailstorm
 
 import (
 	"bytes"
-	"fmt"
+	"encoding/binary"
 	"net/http"
 	"unsafe"
 )
@@ -39,10 +39,9 @@ func alloc(size uint32) uint32 {
 
 //export handle_http_request
 func handleHandleHTTPRequest(ptr uint32, n uint32) uint32 {
+	// TODO: handle this buff.
 	buf := readBufferFromMemory(&ptr, n)
 	_ = buf
-
-	fmt.Println(string(buffers[uintptr(ptr)]))
 
 	req, _ := http.NewRequest("GET", "/", bytes.NewReader([]byte("foo")))
 	rw := &ResponseWriter{}
@@ -50,12 +49,13 @@ func handleHandleHTTPRequest(ptr uint32, n uint32) uint32 {
 	handler(rw, req)
 
 	b := rw.buffer.Bytes()
-	p := makeBuffer(b)
+	respb := make([]byte, 4+len(b))
+	binary.LittleEndian.PutUint32(respb, uint32(len(b)))
 
-	fmt.Println(string(b))
-	fmt.Println(len(b))
+	copy(respb[4:], b)
+	p := makeBuffer(respb)
 
-	return p, uint32(len(b))
+	return p
 }
 
 type ResponseWriter struct {

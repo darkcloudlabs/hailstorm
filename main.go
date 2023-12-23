@@ -32,8 +32,6 @@ func main() {
 }
 
 func InternalHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("new incoming request on the host")
-
 	b, err := os.ReadFile("app.wasm")
 	if err != nil {
 		log.Fatal(err)
@@ -76,36 +74,9 @@ func InternalHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(res)
+	n, _ := mod.Memory().ReadUint32Le(uint32(res[0]))
+	fmt.Println(n)
+	bbbb, _ := mod.Memory().Read(uint32(res[0]), n+4)
 
-	_ = mod
-	w.Write([]byte("good"))
-}
-
-// go:embed main.wasm
-var wasmbytes []byte
-
-func bar() uint32 {
-	fmt.Println("from the host")
-	return 88
-}
-
-func makeRuntime() {
-
-	// mod, err := runtime.NewHostModuleBuilder("foo").
-	// 	NewFunctionBuilder().
-	// 	WithGoModuleFunction()
-	// 	WithFunc(bar).
-	// 	Export("bar").
-	// 	Instantiate(ctx)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	//_ = mod
-	// ok := mod.Memory().WriteString(10, "hello world")
-	// if !ok {
-	// 	log.Fatal("out of range")
-	// }
-
+	w.Write(bbbb[4:])
 }

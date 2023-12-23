@@ -7,7 +7,6 @@ import (
 	"github.com/anthdm/hollywood/cluster"
 	"github.com/anthdm/hollywood/remote"
 	"github.com/darkcloudlabs/hailstorm/pkg/api"
-	"github.com/darkcloudlabs/hailstorm/pkg/store"
 )
 
 func main() {
@@ -18,15 +17,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	cluster, err := cluster.New(cluster.Config{
+	c, err := cluster.New(cluster.Config{
 		ClusterProvider: cluster.NewSelfManagedProvider(),
 		ID:              "server",
 		Engine:          e,
 		Region:          "eu-west",
 	})
-	cluster.Start()
+	c.Start()
 
-	store := store.NewMemoryStore()
-	cluster.Engine().Spawn(api.NewServer(cluster, store), "api")
+	c.Engine().Spawn(api.NewServer(c), "api")
 	select {}
 }
