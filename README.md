@@ -6,6 +6,9 @@ For now starting Hailstorm is as easy as:
 make run
 ```
 
+# Creating Hailstorm apps 
+For the POC we only support applications written in Golang compiled with TinyGo. An example on how that works can be found in the `testdata` folder.
+
 # Creating an application
 Post to `/app` to create an Hailstorm application
 ```json
