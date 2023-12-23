@@ -2,8 +2,13 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
+)
+
+var (
+	ErrDecodeRequestBody = errors.New("could not decode the request body")
 )
 
 type errorResponse struct {

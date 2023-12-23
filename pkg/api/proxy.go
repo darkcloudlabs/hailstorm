@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"net/http"
-	"os"
 
 	"github.com/darkcloudlabs/hailstorm/pkg/runtime"
 	"github.com/go-chi/chi/v5"
@@ -11,18 +10,17 @@ import (
 )
 
 func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) error {
-	id, err := uuid.Parse(chi.URLParam(r, ("id")))
+	deployID, err := uuid.Parse(chi.URLParam(r, ("id")))
 	if err != nil {
 		return writeJSON(w, http.StatusBadRequest, ErrorResponse(err))
 	}
-	// Get the app by ID
 
-	b, err := os.ReadFile("testdata/app.wasm")
+	deploy, err := s.store.GetDeployByID(deployID)
 	if err != nil {
-		return err
+		return writeJSON(w, http.StatusNotFound, ErrorResponse(err))
 	}
 
-	run, err := runtime.New(b)
+	run, err := runtime.New(deploy.Blob)
 	if err != nil {
 		return err
 	}
@@ -33,6 +31,5 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) error {
 
 	run.Close(context.Background())
 
-	_ = id
 	return nil
 }

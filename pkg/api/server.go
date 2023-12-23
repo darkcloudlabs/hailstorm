@@ -6,18 +6,22 @@ import (
 
 	"github.com/anthdm/hollywood/actor"
 	"github.com/anthdm/hollywood/cluster"
+	"github.com/darkcloudlabs/hailstorm/pkg/store"
 	"github.com/go-chi/chi/v5"
 )
 
 type Server struct {
 	router  *chi.Mux
 	cluster *cluster.Cluster
+	store   store.Store
 }
 
+// Hardcode the memory store for now
 func NewServer(c *cluster.Cluster) actor.Producer {
 	return func() actor.Receiver {
 		return &Server{
 			cluster: c,
+			store:   store.NewMemoryStore(),
 		}
 	}
 }
@@ -42,7 +46,8 @@ func (s *Server) start(c *actor.Context) {
 func (s *Server) initRouter() {
 	s.router = chi.NewRouter()
 	s.router.Get("/status", handleStatus)
-	s.router.Get("/deploy/{id}", makeAPIHandler(s.handleCreateDeploy))
+	s.router.Post("/app", makeAPIHandler(s.handleCreateApp))
+	s.router.Post("/app/{id}/deploy", makeAPIHandler(s.handleCreateDeploy))
 
 	s.router.Handle("/proxy/{id}", makeAPIHandler(s.handleProxy))
 }
