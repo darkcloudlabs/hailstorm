@@ -2,6 +2,7 @@ package store
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/darkcloudlabs/hailstorm/pkg/types"
 	"github.com/google/uuid"
@@ -20,6 +21,7 @@ type DeployStore interface {
 }
 
 type MemoryStore struct {
+	mu      sync.RWMutex
 	apps    map[uuid.UUID]*types.App
 	deploys map[uuid.UUID]*types.Deploy
 }
@@ -32,11 +34,15 @@ func NewMemoryStore() *MemoryStore {
 }
 
 func (s *MemoryStore) CreateApp(app *types.App) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.apps[app.ID] = app
 	return nil
 }
 
 func (s *MemoryStore) GetAppByID(id uuid.UUID) (*types.App, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	app, ok := s.apps[id]
 	if !ok {
 		return nil, fmt.Errorf("could not find app with id (%s)", id)
@@ -45,11 +51,15 @@ func (s *MemoryStore) GetAppByID(id uuid.UUID) (*types.App, error) {
 }
 
 func (s *MemoryStore) CreateDeploy(deploy *types.Deploy) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.deploys[deploy.ID] = deploy
 	return nil
 }
 
 func (s *MemoryStore) GetDeployByID(id uuid.UUID) (*types.Deploy, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	deploy, ok := s.deploys[id]
 	if !ok {
 		return nil, fmt.Errorf("could not find deployment with id (%s)", id)

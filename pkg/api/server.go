@@ -17,11 +17,11 @@ type Server struct {
 }
 
 // Hardcode the memory store for now
-func NewServer(c *cluster.Cluster) actor.Producer {
+func NewServer(c *cluster.Cluster, store store.Store) actor.Producer {
 	return func() actor.Receiver {
 		return &Server{
 			cluster: c,
-			store:   store.NewMemoryStore(),
+			store:   store,
 		}
 	}
 }
