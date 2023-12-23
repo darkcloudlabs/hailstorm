@@ -1,0 +1,4 @@
+# listen address of the API server
+http_api_port: 3000
+# listen address of the proxy server
+http_proxy_port: 5000
