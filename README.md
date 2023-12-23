@@ -25,6 +25,7 @@ Should give you a response like this:
 
 # Deploying functions 
 To deploy a function you post a binary WASM blob to `/app/{id}/deploy`. That will give you a response like this:
+> There is an example Hailstorm app written in Go in the `testdata` folder.
 ```json
 {
   "id": "a40fafe4-8b67-4c4a-992c-a34590c227e5",
