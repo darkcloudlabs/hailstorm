@@ -2,7 +2,7 @@ package runtime
 
 import (
 	"context"
-	"fmt"
+	"encoding/binary"
 	"io"
 	"net/http"
 	"os"
@@ -26,7 +26,7 @@ type Runtime struct {
 	wruntime    wazero.Runtime
 }
 
-func New(blob []byte) (*Runtime, error) {
+func New(blob []byte, env map[string]string) (*Runtime, error) {
 	var (
 		ctx     = context.Background()
 		config  = wazero.NewRuntimeConfig().WithDebugInfoEnabled(true)
@@ -41,6 +41,9 @@ func New(blob []byte) (*Runtime, error) {
 	}
 
 	modConfig := wazero.NewModuleConfig().WithStdout(os.Stdout)
+	for key, val := range env {
+		modConfig = modConfig.WithEnv(key, val)
+	}
 	mod, err := runtime.InstantiateModule(ctx, compiledMod, modConfig)
 	if err != nil {
 		return nil, err
@@ -71,8 +74,6 @@ func (runtime *Runtime) HandleHTTP(w http.ResponseWriter, r *http.Request) error
 		return err
 	}
 
-	fmt.Println(reqb)
-
 	alloc := runtime.module.ExportedFunction("alloc")
 	res, err := alloc.Call(ctx, uint64(len(reqb)))
 	if err != nil {
@@ -86,11 +87,13 @@ func (runtime *Runtime) HandleHTTP(w http.ResponseWriter, r *http.Request) error
 	if err != nil {
 		return err
 	}
-	n, _ := runtime.module.Memory().ReadUint32Le(uint32(res[0]))
-	resBytes, _ := runtime.module.Memory().Read(uint32(res[0]), n+4)
+	nresponse, _ := runtime.module.Memory().ReadUint32Le(uint32(res[0]))
+	resBytes, _ := runtime.module.Memory().Read(uint32(res[0]), 4+nresponse+4)
+	statusCode := binary.LittleEndian.Uint32(resBytes[4+nresponse:])
 
-	fmt.Println(string(resBytes))
-	_, err = w.Write(resBytes[4:])
+	w.WriteHeader(int(statusCode))
+	_, err = w.Write(resBytes[4 : len(resBytes)-4])
+
 	return err
 }
 

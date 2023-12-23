@@ -7,7 +7,8 @@ import (
 )
 
 type App struct {
-	ID        uuid.UUID `json:"id"`
-	Name      string    `json:"name"`
-	CreatedAT time.Time `json:"createAt"`
+	ID          uuid.UUID         `json:"id"`
+	Name        string            `json:"name"`
+	Environment map[string]string `json:"-"`
+	CreatedAT   time.Time         `json:"createAt"`
 }

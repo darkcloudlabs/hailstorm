@@ -46,7 +46,13 @@ func (p *Proxy) handleRequest(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(err.Error()))
 		return
 	}
-	run, err := runtime.New(deploy.Blob)
+	app, err := p.store.GetAppByID(deploy.AppID)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(err.Error()))
+		return
+	}
+	run, err := runtime.New(deploy.Blob, app.Environment)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(err.Error()))

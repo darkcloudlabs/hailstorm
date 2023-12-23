@@ -1,10 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
+	"os"
 
-	"github.com/darkcloudlabs/hailstorm/hailstorm"
+	hailstorm "github.com/darkcloudlabs/hailstorm/sdk"
 )
 
 func init() {
@@ -12,9 +12,12 @@ func init() {
 }
 
 func myHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("this is from the guest application")
+	foo := os.Getenv("FOO")
 
-	w.Write([]byte("my response"))
+	resp := "this is the response: " + foo
+
+	w.WriteHeader(500)
+	w.Write([]byte(resp))
 }
 
 func main() {}

@@ -1,46 +1,26 @@
 package api
 
 import (
-	"log/slog"
 	"net/http"
 
-	"github.com/anthdm/hollywood/actor"
-	"github.com/anthdm/hollywood/cluster"
 	"github.com/darkcloudlabs/hailstorm/pkg/store"
 	"github.com/go-chi/chi/v5"
 )
 
 type Server struct {
-	router  *chi.Mux
-	cluster *cluster.Cluster
-	store   store.Store
+	router *chi.Mux
+	store  store.Store
 }
 
-// Hardcode the memory store for now
-func NewServer(c *cluster.Cluster, store store.Store) actor.Producer {
-	return func() actor.Receiver {
-		return &Server{
-			cluster: c,
-			store:   store,
-		}
+func NewServer(store store.Store) *Server {
+	return &Server{
+		store: store,
 	}
 }
 
-func (s *Server) Receive(c *actor.Context) {
-	switch msg := c.Message().(type) {
-	case actor.Started:
-		_ = msg
-		s.start(c)
-	}
-}
-
-func (s *Server) start(c *actor.Context) {
+func (s *Server) Listen(addr string) error {
 	s.initRouter()
-	go func() {
-		if err := http.ListenAndServe(":3000", s.router); err != nil {
-			slog.Error("HTTP listen", "err", err)
-		}
-	}()
+	return http.ListenAndServe(addr, s.router)
 }
 
 func (s *Server) initRouter() {
@@ -48,8 +28,6 @@ func (s *Server) initRouter() {
 	s.router.Get("/status", handleStatus)
 	s.router.Post("/app", makeAPIHandler(s.handleCreateApp))
 	s.router.Post("/app/{id}/deploy", makeAPIHandler(s.handleCreateDeploy))
-
-	s.router.Handle("/proxy/{id}", makeAPIHandler(s.handleProxy))
 }
 
 func handleStatus(w http.ResponseWriter, r *http.Request) {

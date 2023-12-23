@@ -9,3 +9,6 @@ test:
 
 clean:
 	@rm -rf bin/hailstorm
+
+goex:
+	@./examples/go/build.sh

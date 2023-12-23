@@ -3,12 +3,10 @@ package main
 import (
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"time"
 
-	"github.com/anthdm/hollywood/actor"
-	"github.com/anthdm/hollywood/cluster"
-	"github.com/anthdm/hollywood/remote"
 	"github.com/darkcloudlabs/hailstorm/pkg/api"
 	"github.com/darkcloudlabs/hailstorm/pkg/proxy"
 	"github.com/darkcloudlabs/hailstorm/pkg/store"
@@ -16,29 +14,24 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	httpListenAddr = ":3000"
+	httpProxyAddr  = ":5000"
+)
+
 func main() {
 	memstore := store.NewMemoryStore()
-
-	r := remote.New(remote.Config{
-		ListenAddr: "127.0.0.1:30000",
-	})
-	e, err := actor.NewEngine(actor.EngineOptRemote(r))
-	if err != nil {
-		log.Fatal(err)
-	}
-	c, err := cluster.New(cluster.Config{
-		ClusterProvider: cluster.NewSelfManagedProvider(),
-		ID:              "server",
-		Engine:          e,
-		Region:          "eu-west",
-	})
-	c.Start()
-
-	c.Engine().Spawn(api.NewServer(c, memstore), "api")
-
 	seed(memstore)
+	server := api.NewServer(memstore)
+	go func() {
+		slog.Info("api server running", "port", httpListenAddr)
+		log.Fatal(server.Listen(httpListenAddr))
+	}()
 
 	proxy := proxy.New(memstore)
+	slog.Info("app proxy server running", "port", httpProxyAddr)
+	log.Fatal(proxy.Listen(httpProxyAddr))
+
 	log.Fatal(proxy.Listen(":5000"))
 }
 
@@ -48,13 +41,14 @@ func seed(store store.Store) {
 		log.Fatal(err)
 	}
 	app := types.App{
-		ID:        uuid.New(),
-		Name:      "My first Hailstorm app",
-		CreatedAT: time.Now(),
+		ID:          uuid.New(),
+		Name:        "My first Hailstorm app",
+		Environment: map[string]string{"FOO": "fooenv"},
+		CreatedAT:   time.Now(),
 	}
 	store.CreateApp(&app)
 	deploy := types.Deploy{
-		ID:        uuid.New(),
+		ID:        uuid.MustParse("09248ef6-c401-4601-8928-5964d61f2c61"),
 		AppID:     app.ID,
 		Blob:      b,
 		CreatedAT: time.Now(),

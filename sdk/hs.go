@@ -48,11 +48,15 @@ func handleHandleHTTPRequest(ptr uint32, n uint32) uint32 {
 
 	handler(rw, req)
 
+	// Make a buffer for the response. Serialization works like this:
+	// 4 bytes uint32 for the length of the response
+	// response
+	// 4 bytes uint32 for the status code
 	b := rw.buffer.Bytes()
-	respb := make([]byte, 4+len(b))
+	respb := make([]byte, 4+len(b)+4)
 	binary.LittleEndian.PutUint32(respb, uint32(len(b)))
-
 	copy(respb[4:], b)
+	binary.LittleEndian.PutUint32(respb[4+len(b):], uint32(rw.statusCode))
 	p := makeBuffer(respb)
 
 	return p
