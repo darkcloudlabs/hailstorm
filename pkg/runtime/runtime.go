@@ -2,22 +2,14 @@ package runtime
 
 import (
 	"context"
-	"fmt"
-	"io"
 	"net/http"
 	"os"
 
+	"github.com/darkcloudlabs/hailstorm/pkg/encoder"
 	"github.com/tetratelabs/wazero"
 	wapi "github.com/tetratelabs/wazero/api"
 	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
-	"github.com/vmihailenco/msgpack/v5"
 )
-
-type Request struct {
-	Body   []byte
-	Method string
-	URL    string
-}
 
 type Runtime struct {
 	wasmBlob    []byte
@@ -56,22 +48,11 @@ func New(blob []byte) (*Runtime, error) {
 
 func (runtime *Runtime) HandleHTTP(w http.ResponseWriter, r *http.Request) error {
 	ctx := context.Background()
-	rbody, err := io.ReadAll(r.Body)
+
+	reqb, err := encoder.EncodeRequest(r)
 	if err != nil {
 		return err
 	}
-	req := Request{
-		Method: r.Method,
-		URL:    r.URL.Path,
-		Body:   rbody,
-	}
-
-	reqb, err := msgpack.Marshal(req)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println(reqb)
 
 	alloc := runtime.module.ExportedFunction("alloc")
 	res, err := alloc.Call(ctx, uint64(len(reqb)))
@@ -79,7 +60,8 @@ func (runtime *Runtime) HandleHTTP(w http.ResponseWriter, r *http.Request) error
 		return err
 	}
 
-	runtime.module.Memory().Write(uint32(res[0]), reqb)
+	ptr := uint32(res[0])
+	runtime.module.Memory().Write(ptr, reqb)
 
 	handleHTTP := runtime.module.ExportedFunction("handle_http_request")
 	res, err = handleHTTP.Call(ctx, res[0], uint64(len(reqb)))
@@ -89,8 +71,18 @@ func (runtime *Runtime) HandleHTTP(w http.ResponseWriter, r *http.Request) error
 	n, _ := runtime.module.Memory().ReadUint32Le(uint32(res[0]))
 	resBytes, _ := runtime.module.Memory().Read(uint32(res[0]), n+4)
 
-	fmt.Println(string(resBytes))
-	_, err = w.Write(resBytes[4:])
+	bodyBytes, headersBytes, statusCode := encoder.SafeDecode(resBytes[4:])
+
+	headers := encoder.DecodeHeaders(headersBytes)
+
+	for k, v := range headers {
+		for _, vv := range v {
+			w.Header().Add(k, vv)
+		}
+	}
+
+	w.WriteHeader(statusCode)
+	_, err = w.Write(bodyBytes)
 	return err
 }
 
