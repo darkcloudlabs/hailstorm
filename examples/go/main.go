@@ -1,8 +1,8 @@
 package main
 
 import (
+	"io"
 	"net/http"
-	"os"
 
 	hailstorm "github.com/darkcloudlabs/hailstorm/sdk"
 )
@@ -12,12 +12,13 @@ func init() {
 }
 
 func myHandler(w http.ResponseWriter, r *http.Request) {
-	foo := os.Getenv("FOO")
-
-	resp := "this is the response: " + foo
-
-	w.WriteHeader(500)
-	w.Write([]byte(resp))
+	resp, err := http.Get("https://google.com")
+	if err != nil {
+		w.WriteHeader(500)
+		w.Write([]byte(err.Error()))
+		return
+	}
+	io.Copy(w, resp.Body)
 }
 
 func main() {}
